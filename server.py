@@ -47,7 +47,7 @@ def average_heart_rates():
     avg = sum(values) / len(values) if values else 0
     watch_averages = avg
 
-    # print("Heart Averages:", watch_averages)
+    print("Heart Averages:", watch_averages)
 
 def average_votes():
     global voting_averages
@@ -60,7 +60,7 @@ def average_votes():
     avg = sum(values) / len(values) if values else 0
     voting_averages = avg
 
-    print("Voting Averages:", voting_averages)
+    # print("Voting Averages:", voting_averages)
 
 
 
@@ -121,7 +121,7 @@ if __name__ == "__main__":
             if which_program == "h":
                 # ---* Heart Rate Algo *---
                 print("algo here") 
-                time(10)
+                time.sleep(10)
 
             elif which_program == "v":
                 # ---* Voting Algo *---
@@ -132,7 +132,7 @@ if __name__ == "__main__":
                         positive_indicators()
                     else:
                         negative_indicators()
-                        
+
             elif which_program == "m":
                 # ---* Monitoring *---
 
