@@ -2,20 +2,26 @@ import firebase_admin
 from firebase_admin import credentials, db
 import threading
 
-# Load credentials and initialize app
+#for gpt
+import os
+from openai import OpenAI
+import openai_secrets
+client = OpenAI(api_key=openai_secrets.SECRET_KEY)
+
+# Starting Song
+currentSong = "Yeah - Usher"
+
+# ---* Reading data for Heart Rates and Voting *---
+
 cred = credentials.Certificate("biobeat-2d01c-firebase-adminsdk-fbsvc-23282874f8.json")
 firebase_admin.initialize_app(cred, {
     'databaseURL': 'https://biobeat-2d01c-default-rtdb.firebaseio.com/'
 })
 
-# Function to handle heart rate updates
 def heart_rate_listener(event):
-    # print("❤️ Heart Rate Update:", event.data)
     average_heart_rates()
 
-# Function to handle vote updates
 def vote_listener(event):
-    # print("👍 Vote Update:", event.data)
     average_votes()
 
 # Start listening to both, may need to take watches off
@@ -23,7 +29,6 @@ def start_listeners():
     db.reference("HeartRates").listen(heart_rate_listener)
     db.reference("Votes").listen(vote_listener)
 
-# Run in separate thread
 thread = threading.Thread(target=start_listeners)
 thread.start()
 
@@ -50,3 +55,45 @@ def average_votes():
     voting_averages = avg
 
     print("Voting Averages:", voting_averages)
+
+
+
+# ---* Music Alteration Functions *---
+
+def positive_indicators():
+    global currentSong
+
+    prompt = (
+        f"You are a DJ at a party.  Your audience is showing a positive response to the song {currentSong}."
+        f"Give me a similar song to play. Format it in the following way: Name of Song - Name of Artist"
+    )
+
+    response_raw = client.chat.completions.create(
+        model="gpt-3.5-turbo",
+        messages=[{"role": "user", "content": prompt}],
+        max_tokens=1000,
+    )
+
+    response = response_raw.choices[0].message.content
+    print(response)
+    currentSong = response
+    return response
+
+def negative_indicators():
+    global currentSong
+
+    prompt = (
+        f"You are a DJ at a party.  Your audience is showing a negative response to the song {currentSong}."
+        f"Give me a different song to play. Format it in the following way: Name of Song - Name of Artist"
+    )
+
+    response_raw = client.chat.completions.create(
+        model="gpt-3.5-turbo",
+        messages=[{"role": "user", "content": prompt}],
+        max_tokens=1000,
+    )
+
+    response = response_raw.choices[0].message.content
+    print(response)
+    currentSong = response
+    return response
