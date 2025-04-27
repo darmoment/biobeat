@@ -7,6 +7,7 @@ import os
 from openai import OpenAI
 import openai_secrets
 client = OpenAI(api_key=openai_secrets.SECRET_KEY)
+import time
 
 # Starting Song
 currentSong = "Yeah - Usher"
@@ -97,3 +98,15 @@ def negative_indicators():
     print(response)
     currentSong = response
     return response
+
+# ---* Main Program *---
+
+if __name__ == "__main__":
+
+    start_listeners()
+
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        print("Shutting down...")
