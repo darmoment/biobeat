@@ -114,16 +114,35 @@ def negative_indicators():
 
 if __name__ == "__main__":
     start_listeners()
+    which_program = input("Which program would you like to run? \n Heart Rate (h), Voting system (v), or monitoring (m)? \n")
     
     try:
         while True:
-            user_input = input("Is it time to change the song? (y)\n")
+            if which_program == "h":
+                # ---* Heart Rate Algo *---
+                print("algo here") 
+                time(10)
 
-            if user_input == "y":
-                if voting_averages > 0.5:
+            elif which_program == "v":
+                # ---* Voting Algo *---
+                user_input = input("Is it time to change the song? (y)\n")
+
+                if user_input == "y":
+                    if voting_averages > 0.5:
+                        positive_indicators()
+                    else:
+                        negative_indicators()
+                        
+            elif which_program == "m":
+                # ---* Monitoring *---
+
+                user_input = input("Change the song positively (p) or negatively (n)? \n")
+
+                if user_input == "p":
                     positive_indicators()
-                else:
+                elif user_input == "n":
                     negative_indicators()
+                    
 
     except KeyboardInterrupt:
         print("Shutting down...")
