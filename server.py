@@ -10,7 +10,11 @@ client = OpenAI(api_key=openai_secrets.SECRET_KEY)
 import time
 
 # Starting Song
+prevSong = "Yeah - Usher"
 currentSong = "Yeah - Usher"
+
+# Highest Voting Average
+voting_averages = 0
 
 # ---* Reading data for Heart Rates and Voting *---
 
@@ -43,9 +47,10 @@ def average_heart_rates():
     avg = sum(values) / len(values) if values else 0
     watch_averages = avg
 
-    print("Heart Averages:", watch_averages)
+    # print("Heart Averages:", watch_averages)
 
 def average_votes():
+    global voting_averages
     voting_data = db.reference("Votes").get()
     values = []
 
@@ -63,10 +68,12 @@ def average_votes():
 
 def positive_indicators():
     global currentSong
+    global prevSong
 
     prompt = (
         f"You are a DJ at a party.  Your audience is showing a positive response to the song {currentSong}."
-        f"Give me a similar song to play. Format it in the following way: Name of Song - Name of Artist"
+        f"Give me a similar song to play that is different from the {prevSong} and {currentSong}."
+        f"Format it in the following way: Name of Song - Name of Artist"
     )
 
     response_raw = client.chat.completions.create(
@@ -76,16 +83,19 @@ def positive_indicators():
     )
 
     response = response_raw.choices[0].message.content
+    prevSong = currentSong
     print(response)
     currentSong = response
     return response
 
 def negative_indicators():
     global currentSong
+    global prevSong
 
     prompt = (
         f"You are a DJ at a party.  Your audience is showing a negative response to the song {currentSong}."
-        f"Give me a different song to play. Format it in the following way: Name of Song - Name of Artist"
+        f"Give me a similar song to play that is different from the {prevSong} and {currentSong}."
+        f"Format it in the following way: Name of Song - Name of Artist"
     )
 
     response_raw = client.chat.completions.create(
@@ -95,6 +105,7 @@ def negative_indicators():
     )
 
     response = response_raw.choices[0].message.content
+    prevSong = currentSong
     print(response)
     currentSong = response
     return response
@@ -102,11 +113,17 @@ def negative_indicators():
 # ---* Main Program *---
 
 if __name__ == "__main__":
-
     start_listeners()
-
+    
     try:
         while True:
-            time.sleep(1)
+            user_input = input("Is it time to change the song? (y)\n")
+
+            if user_input == "y":
+                if voting_averages > 0.5:
+                    positive_indicators()
+                else:
+                    negative_indicators()
+
     except KeyboardInterrupt:
         print("Shutting down...")
