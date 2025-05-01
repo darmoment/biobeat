@@ -13,10 +13,9 @@ prevSong = "Yeah - Usher"
 currentSong = "Yeah - Usher"
 
 voting_averages = 0  # Boss's variable name
+watch_averages = 0
+storing_avg_heartrate = []
 
-baseline_hr   = {}
-prev_peak_hr  = {}
-latest_peaks  = {}
 lock = threading.Lock()
 
 # Firebase setup
@@ -24,48 +23,6 @@ cred = credentials.Certificate("biobeat-2d01c-firebase-adminsdk-fbsvc-23282874f8
 firebase_admin.initialize_app(cred, {
     'databaseURL': 'https://biobeat-2d01c-default-rtdb.firebaseio.com/'
 })
-
-
-def evaluate_indicators():
-    """
-    
-        It operates on two signals:
-    1. Heart rate (HR): If the current peak HR for any watch exceeds both:
-        - the watch's baseline (resting) HR, and
-        - the previous peak HR,
-       then it counts as a **positive** HR indicator.
-
-    2. Votes: If the average vote (from crowd feedback) is positive (>0),
-       it counts as a **positive** vote indicator.
-
-       If **either** the HR or the votes show a positive indicator, trigger the positive response
-    """
-    global prev_peak_hr, latest_peaks, voting_averages
-
-    hr_positive = False
-    with lock:
-        if latest_peaks:
-            crowd_peak = max(latest_peaks.values())
-            crowd_id   = max(latest_peaks, key=latest_peaks.get)
-
-            if crowd_id not in baseline_hr:
-                baseline_hr[crowd_id]  = crowd_peak
-                prev_peak_hr[crowd_id] = crowd_peak
-
-            rest     = baseline_hr[crowd_id]
-            previous = prev_peak_hr.get(crowd_id, rest)
-
-            if (crowd_peak > rest) and (crowd_peak > previous):
-                hr_positive = True
-
-            prev_peak_hr[crowd_id] = crowd_peak
-
-    vote_positive = voting_averages > 0
-
-    if hr_positive or vote_positive:
-        positive_indicators()
-    else:
-        negative_indicators()
 
 
 # Firebase listeners
@@ -84,16 +41,37 @@ threading.Thread(target=start_listeners, daemon=True).start()
 
 # Aggregation helpers
 def average_heart_rates():
+    global watch_averages
+
     heart_data = db.reference("HeartRates").get()
-    if not heart_data:
-        return
-    with lock:
-        for watch_id, entry in heart_data.items():
-            hr = entry['value']['doubleValue']
-            latest_peaks[watch_id] = max(hr, latest_peaks.get(watch_id, 0))
-        avg = sum(latest_peaks.values()) / len(latest_peaks)
-    print("Heart-rate average:", round(avg, 1))
-    evaluate_indicators()
+    values = []
+
+    for watch_id, entry in heart_data.items():
+        values.append(entry['value']['doubleValue'])
+    
+    avg = sum(values) / len(values) if values else 0
+    watch_averages = avg
+
+    print("Heart Averages:", watch_averages)
+
+sampling_active = True
+
+def background_sampler():
+    global storing_avg_heartrate
+    while True:
+        if sampling_active:
+            heart_data = db.reference("HeartRates").get()
+            values = []
+
+            for watch_id, entry in heart_data.items():
+                values.append(entry['value']['doubleValue'])
+
+            if values:
+                avg = sum(values) / len(values)
+                storing_avg_heartrate.append(avg)
+                print(f"[Sampler] Collected avg: {round(avg, 2)}")
+
+        time.sleep(2)  # Sample every 2 seconds
 
 def average_votes():
     global voting_averages
@@ -107,8 +85,6 @@ def average_votes():
     voting_averages = avg
 
     print("Vote average:", round(voting_averages, 2))
-    evaluate_indicators()
-
 
 # Music alteration functions
 def positive_indicators():
@@ -153,14 +129,59 @@ def negative_indicators():
 # Main program loop
 if __name__ == "__main__":
     start_listeners()
+    threading.Thread(target=background_sampler, daemon=True).start()
     which_program = input("Which program would you like to run? \n Heart Rate (h), Voting system (v), or monitoring (m)? \n")
     
     try:
         while True:
             if which_program == "h":
-                # Heart Rate Algo (driven by listener)
-                print("Listening for heart rate changes...")
-                time.sleep(10)
+                print("🔄 Collecting baseline heart rate average for 60 seconds...")
+
+                baseline_values = []
+                baseline_duration = 60  # seconds
+                sample_interval = 5  # seconds
+                num_samples = baseline_duration // sample_interval
+
+                for i in range(num_samples):
+                    heart_data = db.reference("HeartRates").get()
+                    values = []
+
+                    for watch_id, entry in heart_data.items():
+                        values.append(entry['value']['doubleValue'])
+
+                    if values:
+                        avg_sample = sum(values) / len(values)
+                        baseline_values.append(avg_sample)
+                        print(f"Sample {i+1}/{num_samples}: {round(avg_sample, 2)}")
+
+                    time.sleep(sample_interval)
+
+                previous_avg = sum(baseline_values) / len(baseline_values) if baseline_values else 0
+                print(f"✅ Baseline average heart rate: {round(previous_avg, 2)}")
+
+                while True:
+                    user_input = input("Evaluate heart rate change and suggest song? (y/n): ")
+
+                    if user_input.lower() == "y":
+                        if not storing_avg_heartrate:
+                            print("No heart rate data collected.")
+                            continue
+
+                        current_avg = sum(storing_avg_heartrate) / len(storing_avg_heartrate) if values else 0
+                        print("AVG HEARRATES", storing_avg_heartrate)
+                        print(f"Current avg heart rate: {round(current_avg, 2)}")
+
+                        if current_avg > previous_avg:
+                            positive_indicators()
+                        else:
+                            negative_indicators()
+
+                        previous_avg = current_avg
+                        storing_avg_heartrate = []
+
+                        continue
+                   
+                    time.sleep(2)
 
             elif which_program == "v":
                 # Voting Algo
